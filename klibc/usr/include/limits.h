@@ -40,7 +40,7 @@
 #define ULLONG_MAX	18446744073709551615ULL
 
 #include <bitsize/limits.h>
-#include <linux/limits.h>
+//#include <linux/limits.h>
 
 #define SSIZE_MAX	LONG_MAX
 

@@ -15,7 +15,7 @@
 /* We want a struct flock with 64-bit offsets, which we define below */
 # define HAVE_ARCH_STRUCT_FLOCK
 #endif
-#include <linux/fcntl.h>
+//#include <linux/fcntl.h>
 #include <bitsize.h>
 
 #if !defined(__mips__) && _BITSIZE == 32

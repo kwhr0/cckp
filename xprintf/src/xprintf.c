@@ -24,7 +24,6 @@
 
 
 #if XF_USE_OUTPUT
-#include <stdarg.h>
 void (*xfunc_output)(int);	/* Pointer to the default output device */
 static char *strptr;		/* Pointer to the output memory (used by xsprintf) */
 
@@ -414,7 +413,9 @@ void xsprintf (			/* Put a formatted string to the memory */
 	strptr = 0;			/* Disable destination for memory */
 }
 
-
+void xvprintf(const char *fmt, va_list arp) {
+	xvfprintf(xfunc_output, fmt, arp);
+}
 
 #if XF_USE_DUMP
 /*----------------------------------------------*/

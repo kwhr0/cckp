@@ -18,4 +18,4 @@ char *strrchr(const char *s, int c)
 	return (char *)found;
 }
 
-__ALIAS(char *, rindex, (const char *, int), strrchr)
+//__ALIAS(char *, rindex, (const char *, int), strrchr)

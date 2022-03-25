@@ -16,4 +16,4 @@ char *strchr(const char *s, int c)
 	return (char *)s;
 }
 
-__ALIAS(char *, index, (const char *, int), strchr)
+//__ALIAS(char *, index, (const char *, int), strchr)
