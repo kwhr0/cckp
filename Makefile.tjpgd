@@ -1,0 +1,9 @@
+SRCDIR = tjpgd3/src
+CC = ~/Library/Developer/Xcode/DerivedData/cckp-*/Build/Products/Release/cckp
+CFLAGS = -atjpgd -D__KLIBC__ -Iklibc/usr/include -Iklibc/usr/include/bits32
+SRCS = $(SRCDIR)/tjpgd.c
+
+all: tjpgd.lp
+
+tjpgd.lp: $(SRCS)
+	$(CC) $(CFLAGS) $(SRCS)

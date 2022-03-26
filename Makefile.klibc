@@ -1,0 +1,78 @@
+SRCDIR = klibc/usr/klibc
+CC = ~/Library/Developer/Xcode/DerivedData/cckp-*/Build/Products/Release/cckp
+CFLAGS = -aklibc -D__KLIBC__ -Iklibc/usr/include -Iklibc/usr/include/bits32
+
+SRCS = \
+$(SRCDIR)/ctype/isdigit.c \
+$(SRCDIR)/ctype/isblank.c \
+$(SRCDIR)/ctype/isascii.c \
+$(SRCDIR)/ctype/isxdigit.c \
+$(SRCDIR)/ctype/isprint.c \
+$(SRCDIR)/ctype/ispunct.c \
+$(SRCDIR)/ctype/isalpha.c \
+$(SRCDIR)/ctype/toupper.c \
+$(SRCDIR)/ctype/islower.c \
+$(SRCDIR)/ctype/isgraph.c \
+$(SRCDIR)/ctype/isupper.c \
+$(SRCDIR)/ctype/tolower.c \
+$(SRCDIR)/ctype/iscntrl.c \
+$(SRCDIR)/ctype/isspace.c \
+$(SRCDIR)/ctype/isalnum.c \
+$(SRCDIR)/memcpy.c \
+$(SRCDIR)/strchr.c \
+$(SRCDIR)/strtok.c \
+$(SRCDIR)/strcspn.c \
+$(SRCDIR)/strncat.c \
+$(SRCDIR)/strspn.c \
+$(SRCDIR)/fnmatch.c \
+$(SRCDIR)/strsep.c \
+$(SRCDIR)/strcasecmp.c \
+$(SRCDIR)/strtoimax.c \
+$(SRCDIR)/memrchr.c \
+$(SRCDIR)/memswap.c \
+$(SRCDIR)/strncasecmp.c \
+$(SRCDIR)/strlcpy.c \
+$(SRCDIR)/strstr.c \
+$(SRCDIR)/strcat.c \
+$(SRCDIR)/strtol.c \
+$(SRCDIR)/strnlen.c \
+$(SRCDIR)/strntoumax.c \
+$(SRCDIR)/ctypes.c \
+$(SRCDIR)/strpbrk.c \
+$(SRCDIR)/memcmp.c \
+$(SRCDIR)/strlen.c \
+$(SRCDIR)/qsort.c \
+$(SRCDIR)/memccpy.c \
+$(SRCDIR)/strncmp.c \
+$(SRCDIR)/strdup.c \
+$(SRCDIR)/strrchr.c \
+$(SRCDIR)/strtoull.c \
+$(SRCDIR)/strtoumax.c \
+$(SRCDIR)/strtoll.c \
+$(SRCDIR)/strndup.c \
+$(SRCDIR)/memmove.c \
+$(SRCDIR)/strtoul.c \
+$(SRCDIR)/strtok_r.c \
+$(SRCDIR)/strcmp.c \
+$(SRCDIR)/bzero.c \
+$(SRCDIR)/strerror.c \
+$(SRCDIR)/memset.c \
+$(SRCDIR)/strxspn.c \
+$(SRCDIR)/strcpy.c \
+$(SRCDIR)/nullenv.c \
+$(SRCDIR)/bsearch.c \
+$(SRCDIR)/atexit.c \
+$(SRCDIR)/memchr.c \
+$(SRCDIR)/strlcat.c \
+$(SRCDIR)/strncpy.c \
+$(SRCDIR)/alphasort.c \
+$(SRCDIR)/memmem.c \
+$(SRCDIR)/strntoimax.c \
+$(SRCDIR)/jrand48.c \
+$(SRCDIR)/lrand48.c \
+$(SRCDIR)/srand48.c \
+
+all: klibc.lp
+
+klibc.lp: $(SRCS)
+	$(CC) $(CFLAGS) $(SRCS)

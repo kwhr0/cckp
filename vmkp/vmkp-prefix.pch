@@ -1,0 +1,5 @@
+#ifdef __OBJC__
+#import <Cocoa/Cocoa.h>
+#import <AudioToolbox/AudioToolbox.h>
+#import <OpenGL/gl.h>
+#endif
