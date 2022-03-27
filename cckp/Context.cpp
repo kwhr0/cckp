@@ -218,8 +218,8 @@ static void DefineFunction(std::string &name, Type *type) {
 	}
 	returnLabelNum = ++labelNum;
 	Obj::code.emplace_back(Obj::LABEL, name);
-	int save = (int)std::distance(begin(Obj::code), end(Obj::code));
 	Obj::code.emplace_back(Obj::COMMENT, "FUNC " + name);
+	int save = (int)std::distance(begin(Obj::code), end(Obj::code));
 	stackMin = 0;
 	gotoNeed.clear();
 	gotoDefined.clear();

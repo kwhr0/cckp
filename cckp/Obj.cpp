@@ -242,7 +242,8 @@ void Obj::Optimize() {
 }
 
 void Obj::MakeInline(std::string &name, size_t save) {
-	if (save >= 2 && code[save - 2].inst == COMMENT) code[save - 2].s = ""; // one before LABEL
+	if (save >= 3 && code[save - 1].inst == COMMENT && code[save - 2].inst == LABEL && code[save - 3].inst == COMMENT)
+		code[save - 3].s = "";
 	for (auto it = begin(code) + save; it != end(code); it++)
 		if ((it->IsAccess()) && it->reg2 == REGNUM_SP) it->flags |= FIX;
 	inlinecode[name] = std::vector<Obj>(begin(code) + save, end(code));
