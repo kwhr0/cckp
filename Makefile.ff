@@ -1,0 +1,9 @@
+SRCDIR = ff14b/source
+CC = ~/Library/Developer/Xcode/DerivedData/cckp-*/Build/Products/Release/cckp
+CFLAGS = -aff -D__KLIBC__ -Iklibc/usr/include
+SRCS = $(SRCDIR)/ff.c
+
+all: ff.lp
+
+ff.lp: $(SRCS)
+	$(CC) $(CFLAGS) $(SRCS)

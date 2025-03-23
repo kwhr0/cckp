@@ -1,0 +1,9 @@
+SRCDIR = xprintf/src
+CC = ~/Library/Developer/Xcode/DerivedData/cckp-*/Build/Products/Release/cckp
+CFLAGS = -a xprintf -D__KLIBC__ -Iklibc/usr/include
+SRCS = $(SRCDIR)/xprintf.c
+
+all: xprintf.lp
+
+xprintf.lp: $(SRCS)
+	$(CC) $(CFLAGS) $(SRCS)
