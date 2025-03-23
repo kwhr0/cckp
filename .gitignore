@@ -5,13 +5,6 @@ a.srec
 *.o
 *.lp
 Depend
-
-ff14b/
-mplus_bitmap_fonts/
-old/
-tjpgd3/
-xprintf/
-
 project.xcworkspace/
 xcshareddata/
 xcuserdata/
