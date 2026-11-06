@@ -353,8 +353,12 @@ static bool checkType(Type *formal, Type *actual) { // incomplete
 }
 
 void Node::EmitCall() {
-	if (c0->kind != Node::NAME) c0->Emit();
-	Type *type1 = c0->type->kind == Type::POINTER ? c0->type->next : c0->type;
+	Type *type1;
+	if (c0->kind == Node::NAME) type1 = c0->type;
+	else {
+		c0->Emit();
+		type1 = type->kind == Type::POINTER ? type->next : type;
+	}
 	if (type1->attr._varg ? func_arg.size() < type1->args.size() : func_arg.size() != type1->args.size()) Error(ERR_ARG);
 	int ofs = 0, adjust = 0, i = 0, r = REGNUM_ARG, regnum_save = regnum;
 	bool retStruct = type1->next->kind == Type::STRUCT;
@@ -389,8 +393,9 @@ void Node::EmitCall() {
 	Obj::code.insert(end(Obj::code), begin(argregs), end(argregs));
 	regnum = regnum_save;
 	Obj::AdjustOffset(save, [&](bool) { return adjust; });
-	if (c0->type->kind == Type::POINTER) {
+	if (c0->kind != Node::NAME) {
 		regnum--;
+		if (type->kind == Type::POINTER) Obj::code.emplace_back(Obj::LD, top(), 0, top(), UNIT_SIZE);
 		Obj::code.emplace_back(Obj::CALLV, top());
 	}
 	else if (Obj::inlinecode.count(c0->name)) {
@@ -498,7 +503,7 @@ void Node::StructAccess(Obj::Inst inst, bool store) {
 		regnum = second();
 		Obj::code.emplace_back(Obj::ST, second(), 0, top(), type->size);
 	}
-	else Obj::code.emplace_back(type->attr._unsigned ? Obj::LDU : Obj::LD, second(), 0, second(), type->size);
+	else Obj::code.emplace_back(instLD(), second(), 0, second(), type->size);
 }
 
 void Node::Emit(bool store) {
@@ -520,7 +525,7 @@ void Node::Emit(bool store) {
 				Obj::code.emplace_back(Obj::ST, second(), 0, top(), type->size);
 			}
 			else if (type->kind != Type::STRUCT && type->kind != Type::ARRAY)
-				Obj::code.emplace_back(type->attr._unsigned ? Obj::LDU : Obj::LD, second(), 0, second(), type->size);
+				Obj::code.emplace_back(instLD(), second(), 0, second(), type->size);
 			break;
 		case Node::ADDRESS:
 			c0->Emit();
@@ -655,7 +660,7 @@ void Node::Emit(bool store) {
 		case Node::VAR:
 			if (store) VarAccess(Obj::ST, second(), var->ofs);
 			else VarAccess(type->kind == Type::ARRAY || type->kind == Type::STRUCT ?
-						   Obj::LEA : type->attr._unsigned ? Obj::LDU : Obj::LD, inc_regnum(), var->ofs);
+						   Obj::LEA : instLD(), inc_regnum(), var->ofs);
 			break;
 		default:
 			break;

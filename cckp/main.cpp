@@ -26,10 +26,11 @@ int main(int argc, char *argv[]) {
 #endif
 	std::string archive;
 	bool preproOnly = false, compileOnly = false, depend = false;
+	G::stackPos = 0x200000;
 	try {
 		std::string pwd = std::string(getenv("PWD")) + '/';
 		includePath.push_back(pwd);
-		for (int c; (c = getopt(argc, argv, "D:EI:Ma:cl:")) != -1;) {
+		for (int c; (c = getopt(argc, argv, "D:EI:Ma:cl:s:")) != -1;) {
 			bool e = false;
 			std::string name, content;
 			switch (c) {
@@ -57,6 +58,9 @@ int main(int argc, char *argv[]) {
 				case 'l':
 					ReadLibPath(optarg);
 					break;
+				case 's':
+					sscanf(optarg, "%x", &G::stackPos);
+					break;
 			}
 		}
 		if (argc <= optind) {
@@ -78,12 +82,12 @@ int main(int argc, char *argv[]) {
 				}
 			}
 		}
+		FileClear();
+		if (!preproOnly && !compileOnly) {
+			if (depend) printDepend(A_OUT, true);
+			else Link(argc, argv, archive);
+		}
 	}
 	catch (...) {}
-	FileClear();
-	if (!preproOnly && !compileOnly) {
-		if (depend) printDepend(A_OUT, true);
-		else Link(argc, argv, archive);
-	}
 	return ErrorCount();
 }

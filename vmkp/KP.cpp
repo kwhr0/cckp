@@ -21,12 +21,12 @@ enum {
 		// 001ooooo rrrrrrrr iiiiiiii iiiiiiii
 /*20*/	BEQ, BNE, BEQF, BNEF, _24, _25, _26, _27,
 		_28, _29, _2A, _2B, _2C, _2D, _2E, LEA,
-/*30*/	ST, ST2, ST4, ST8, _3C, _3D, _3E, _3F,
-		LD, LD2, LD4, LD8, LDU, LDU2, LDU4, LDU8,
+/*30*/	ST, ST2, ST4, ST8, _34, _35, _36, _37,
+		LD, LD2, LD4, LD8, LDU, LDU2, LDU4, _3F,
 		// 01oooooo rrrrrrrr xxxxxxxx xxxxxxxx
 /*40*/	ADD, SUB, MUL, DIV, REM, MULU, DIVU, REMU,
 /*48*/	ADDF, SUBF, MULF, DIVF, AND, OR, XOR, MOV,
-/*50*/	SLLV, _31, SRLV, SRAV, SEQ, SNE, SEQF, SNEF,
+/*50*/	SLLV, _51, SRLV, SRAV, SEQ, SNE, SEQF, SNEF,
 /*58*/	SLT, SLE, SLTU, SLEU, SGT, SGE, SGTU, SGEU,
 /*60*/	SLTF, SLEF, SGTF, SGEF,
 };
@@ -43,6 +43,16 @@ void KP::Reset() {
 }
 
 #if DEBUG
+void KP::insnchk(adr_t adr) {
+	if (adr >= 0x40000) {
+		fprintf(stderr, "insn from out of ROM.\n");
+#if KP_TRACE
+		StopTrace();
+#else
+		exit(1);
+#endif
+	}
+}
 void KP::wchk(adr_t adr) {
 	if (adr < 0x40000 || adr >= 0x200000) {
 		fprintf(stderr, "write to TEXT segment or out of RAM.\n");
@@ -77,6 +87,7 @@ int KP::Execute(int n) {
 		r[0] = 0;
 #endif
 		adr_t adr;
+		insnchk(pc);
 		inst_t inst = (inst_t &)m[pc];
 		pc += 1 << SHAMT_I;
 		switch (inst >> 24) {
@@ -319,12 +330,14 @@ int KP::Execute(int n) {
 				CLOCK(1);
 				KP_TRACE_LOG(L, acs32);
 				break;
-			case LD8: case LDU8:
+#ifdef ISA64
+			case LD8:
 				setadr();
 				r1 = (int64_t &)m[adr];
 				CLOCK(1);
 				KP_TRACE_LOG(L, acs64);
 				break;
+#endif
 			case ST:
 				setadr();
 				wchk(adr);
@@ -344,12 +357,15 @@ int KP::Execute(int n) {
 				(int32_t &)m[adr] = (int32_t)r1;
 				KP_TRACE_LOG(S, acs32);
 				break;
+#ifdef ISA64
+
 			case ST8:
 				setadr();
 				wchk(adr);
 				(int64_t &)m[adr] = r1;
 				KP_TRACE_LOG(S, acs64);
 				break;
+#endif
 			case EI:
 				intperm = true;
 				break;
@@ -387,7 +403,11 @@ int KP::Execute(int n) {
 #if KP_TRACE
 		int op = inst >> 24;
 		if (op > 8 && op & 0xcc) {
+#ifdef ISA64
 			tracep->acsR = acs64;
+#else
+			tracep->acsR = acs32;
+#endif
 			tracep->adrR = inst >> 20 & 0xf;
 			tracep->dataR = r1;
 		}

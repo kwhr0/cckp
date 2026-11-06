@@ -36,6 +36,7 @@ protected:
 	int clock;
 private:
 #if DEBUG
+	void insnchk(adr_t adr);
 	void wchk(adr_t adr);
 #endif
 	void ill();

@@ -66,6 +66,9 @@ struct Node {
 	bool isSubst() const {
 		return kind >= SUBST_START && kind <= SUBST_END;
 	}
+	Obj::Inst instLD() const {
+		return type->attr._unsigned && type->size < UNIT_SIZE ? Obj::LDU : Obj::LD;
+	}
 	Kind kind;
 	Type *type;
 	Var *var;

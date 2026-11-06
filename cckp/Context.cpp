@@ -22,69 +22,97 @@ static void ParseBlock() {
 	else ParseStatement();
 }
 
+static char CompileTimeInit(Type *type, bool &emit, int &size);
+
 static int ArrayInit(Type *type) {
-	int n = 0;
+	int size = 0;
 	if (chkch() == '\"') {
-		StringLiteral(&n);
-		if (!type->size) type->size = n;
+		StringLiteral(&size);
+		if (type->size) size = type->size;
 	}
 	else {
 		needch('{');
 		char c = 0;
 		do {
-			c = ExprContext(false, true, type);
-			Node *contents = ExprContents();
-			if (!contents) break;
-			if (!type->size || n < type->size) contents->EmitLiteral(Obj::DEF, type->next, type->next->size);
-			n += type->next->size;
+			bool emit = !type->size || size < type->size;
+			int n;
+			c = CompileTimeInit(type->next, emit, n);
+			if (emit) size += n;
 		} while (c == ',');
-		if (type->size)
-			for (; n < type->size; n += type->next->size)
-				Obj::code.emplace_back(Obj::DEF, "", type->next->size);
-		else type->size = n;
+		for (; size < type->size; size += type->next->size)
+			Obj::code.emplace_back(Obj::DEF, "", type->next->size); // append missing parts
 		if (c) _ungetc(c);
 		needch('}');
 	}
-	return n;
+	return size;
 }
 
-static char CompileTimeInit(Type *type) {
-	int pad, n = 0, l;
+static char CompileTimeInit(Type *type, bool &emit, int &size) {
+	int pad, l;
 	char c = 0;
 	Node *contents;
+	size = 0;
 	switch (type->kind) {
 		case Type::VALUE:
 			c = ExprContext(false, true, type);
 			contents = ExprContents();
-			if (!contents) break;
-			contents->EmitLiteral(Obj::DEF, type, type->size);
+			if (!contents) emit = false;
+			if (emit) contents->EmitLiteral(Obj::DEF, type, type->size);
+			size += type->size;
 			if (c) _ungetc(c);
 			break;
 		case Type::POINTER:
 			if ((c = chkch()) == '\"' || c == '{') {
 				l = ++labelNum;
 				Obj::code.emplace_back(Obj::DATA, "pointer", G::dataOfs, l);
-				Align(G::dataOfs += ArrayInit(type));
+				int n = ArrayInit(type);
+				Align(G::dataOfs += n);
+				size += n;
 				Obj::code.emplace_back(Obj::DEF, "pointer", UNIT_SIZE, l);
 			}
 			else {
-				Obj::code.emplace_back(Obj::DATA, "", G::dataOfs);
-				Obj::code.emplace_back(Obj::DEF, "", type->size, ConstExpr());
+				c = ExprContext(false, true);
+				contents = ExprContents();
+				if (contents) {
+					if (contents->kind == Node::CAST) contents = contents->c0;
+					switch (contents->kind) {
+						case Node::CONST:
+							Obj::code.emplace_back(Obj::DEF, "", type->size, contents->const_value);
+							size += type->size;
+							break;
+						case Node::NAME:
+							Obj::code.emplace_back(Obj::DEFFN, contents->name);
+							size += UNIT_SIZE;
+							break;
+						case Node::ADDRESS:
+							Obj::code.emplace_back(Obj::DEFADR, contents->name);
+							size += UNIT_SIZE;
+							break;
+						default:
+							Fatal(FATAL_INTERNAL);
+							break;
+					}
+				}
+				if (c) _ungetc(c);
 			}
-			Obj::code.emplace_back(Obj::ENDDATA);
 			break;
 		case Type::ARRAY:
-			ArrayInit(type);
+			size += ArrayInit(type);
 			break;
 		case Type::STRUCT:
-			needch('{');
+			if (chkch() != '{') break; // extra ',' in case array
+			_getc();
 			for (auto m : type->members) {
-				n += pad = m.second.ofs - n;
+				size += pad = m.second.ofs - size;
 				while (--pad >= 0) Obj::code.emplace_back(Obj::DEF, "", 1);
-				c = CompileTimeInit(m.second.type);
-				n += m.second.type->size;
+				bool emit = true;
+				int n;
+				c = CompileTimeInit(m.second.type, emit, n);
+				size += n;
 				if (c != ',') break;
 			}
+			for (; size < type->size; size++)
+				Obj::code.emplace_back(Obj::DEF, "", 1);
 			if (c) _ungetc(c);
 			needch('}');
 			break;
@@ -158,9 +186,11 @@ static void DefineLocalVar(Type *type_base) {
 				Align(G::dataOfs);
 				sc.vars[name] = Var(type, G::dataOfs, true, true);
 				Obj::code.emplace_back(Obj::DATA, "", G::dataOfs);
-				c = CompileTimeInit(type);
+				bool emit = true;
+				int size = 0;
+				c = CompileTimeInit(type, emit, size);
 				Obj::code.emplace_back(Obj::ENDDATA);
-				G::dataOfs += type->size;
+				G::dataOfs += size;
 			}
 			else {
 				size_t save = std::distance(begin(Obj::code), end(Obj::code));
@@ -192,19 +222,19 @@ static void DefineLocalVar(Type *type_base) {
 	assertch(c, ';');
 }
 
-static void DefineGlobalVar(std::string &name, Type *type, bool dataf) {
+static void DefineGlobalVar(std::string &name, Type *type, bool dataf, int size) {
 	Scope &sc = G::scopeStack.front();
 	// redefinition of global variable is not an error.
 	//if (sc.vars.count(name) && sc.vars[name].defined) Error(ERR_MULTI, name.c_str());
 	if (type->attr._extern)
 		sc.vars[name] = Var(type, 0, true, false); // offset will be set by linker
 	else {
-		if (!type->size) Error(ERR_VAR_SIZE);
+		if (!size) Error(ERR_VAR_SIZE);
 		int &ofs = dataf ? G::dataOfs : sc.ofs;
 		Align(ofs);
 		sc.vars[name] = Var(type, ofs, true, dataf, true);
-		if (!dataf) Obj::code.emplace_back(Obj::SPACE, name, ofs, type->size);
-		ofs += type->size;
+		if (!dataf) Obj::code.emplace_back(Obj::SPACE, name, ofs, size);
+		ofs += size;
 	}
 }
 
@@ -235,6 +265,15 @@ static void DefineFunction(std::string &name, Type *type) {
 			if (r > REGNUM_ARGEND) break;
 			if (Node::stackArg.count(ofs)) so.emplace_back(Obj::ST, r, ofs, REGNUM_SP, UNIT_SIZE);
 			else Obj::ReplaceArg(save, ofs, r);
+			if (p.second->kind == Type::VALUE && p.second->size < UNIT_SIZE) {
+				if (p.second->attr._unsigned && p.second->size <= 2)
+					so.emplace_back(Obj::ANDI, r, (1 << (p.second->size << 3)) - 1);
+				else {
+					int bits = (UNIT_SIZE - p.second->size) << 3;
+					so.emplace_back(Obj::SLL, r, bits);
+					so.emplace_back(p.second->attr._unsigned ? Obj::SRL : Obj::SRA, r, bits);
+				}
+			}
 			usedregs &= ~(1 << r++);
 		}
 		ofs += std::max(p.second->size, UNIT_SIZE);
@@ -478,10 +517,16 @@ void ParseAll() {
 					needch(';');
 					break;
 				}
+				int size = type->size;
 				char c = getch();
 				if (c == '=') {
+					Align(G::dataOfs);
 					Obj::code.emplace_back(Obj::DATA, "", G::dataOfs);
-					c = CompileTimeInit(type);
+					size = 0;
+					bool emit = true;
+					// array[] is type->size==0, so counting in CompileTimeInit()
+					c = CompileTimeInit(type, emit, size);
+					if (type->kind == Type::ARRAY && !type->size) type->size = size;
 					Obj::code.emplace_back(Obj::ENDDATA);
 					dataf = true;
 				}
@@ -491,7 +536,7 @@ void ParseAll() {
 					break;
 				}
 				else if (c == ',' || c == ';') {
-					DefineGlobalVar(name, type, dataf);
+					DefineGlobalVar(name, type, dataf, size);
 					if (c == ';') break;
 				}
 				else if (c == '{') {

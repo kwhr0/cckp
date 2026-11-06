@@ -17,15 +17,15 @@ struct Obj {
 /*20*/	BEQ, BNE, BEQF, BNEF, _24, _25, _26, _27,
 		_28, _29, _2A, _2B, _2C, _2D, _2E, LEA,
 /*30*/	ST, ST2, ST4, ST8, _34, _35, _36, _37,
-		LD, LD2, LD4, LD8, LDU, LDU2, LDU4, LDU8,
+		LD, LD2, LD4, LD8, LDU, LDU2, LDU4, _3F,
 		// 01oooooo rrrrrrrr xxxxxxxx xxxxxxxx
 /*40*/	ADD, SUB, MUL, DIV, REM, MULU, DIVU, REMU,
 /*48*/	ADDF, SUBF, MULF, DIVF, AND, OR, XOR, MOV,
-/*50*/	SLLV, _31, SRLV, SRAV, SEQ, SNE, SEQF, SNEF,
+/*50*/	SLLV, _51, SRLV, SRAV, SEQ, SNE, SEQF, SNEF,
 /*58*/	SLT, SLE, SLTU, SLEU, SGT, SGE, SGTU, SGEU,
 /*60*/	SLTF, SLEF, SGTF, SGEF,
 		// psuedo inst.
-		SUBI, LIL, LABEL, DATA, ENDDATA, DEF, SPACE, COMMENT
+		SUBI, LIL, LABEL, DATA, ENDDATA, DEF, SPACE, COMMENT, DEFADR, DEFFN
 	};
 	static inline struct {
 		const char *s;

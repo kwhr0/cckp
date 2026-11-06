@@ -134,6 +134,7 @@ void Obj::Dump(FILE *fo) {
 			labels[t] = std::pair<int, int>(section, lc[section]);
 			break;
 		case DEF:
+			lc[1] = lc[1] + p1 - 1 & ~(p1 - 1);
 			fprintf(fo, "D %08X - ", lc[1]);
 			if (p1 == 1) fprintf(fo, "%02lX      ", imm & 0xff);
 			else if (p1 == 2) fprintf(fo, "%04lX    ", imm & 0xffff);
@@ -145,6 +146,18 @@ void Obj::Dump(FILE *fo) {
 			else if (s.length()) fprintf(fo, "%s%ld\n", s.c_str(), imm);
 			else fprintf(fo, "%ld\n", imm);
 			lc[1] += p1;
+			break;
+		case DEFADR:
+			lc[1] = lc[1] + (UNIT_SIZE - 1) & ~(UNIT_SIZE - 1);
+			fprintf(fo, "D %08X e %08X\t.def.%d\t%s\n", lc[1], labels[s].second | ORG_DATA, UNIT_SIZE, s.c_str());
+			lc[1] += 4;
+			break;
+		case DEFFN:
+			lc[1] = lc[1] + (UNIT_SIZE - 1) & ~(UNIT_SIZE - 1);
+			fprintf(fo, "D %08X %c %08X\t.def.%d\t%s\n", lc[1],
+					G::funcs.count(s) && G::funcs[s]->attr._static ? 'g' : 'h', labels[s].second, UNIT_SIZE, s.c_str());
+			lc[1] += 4;
+			refset.insert(s);
 			break;
 		case SPACE:
 			lc[2] = p1;
@@ -211,6 +224,7 @@ void Obj::Optimize() {
 			int ofs = (int)i->imm;
 			used = false;
 			for (j = i + 1; j != end(code); j++) {
+				if (j->inst == ST && j->reg1 == r) break;
 				if ((j->IsLoad() || j->inst == ST) && j->reg2 == r) {
 					used = true;
 					j->imm += ofs;
@@ -275,11 +289,11 @@ void Obj::crt0(FILE *fo) {
 	code.emplace_back(BRA, "_reset_");
 	for (int i = 0; i < INT_VEC_N; i++) code.emplace_back(RETI); // reserve for interrupt
 	code.emplace_back(LABEL, "_reset_");
-	code.emplace_back(LI, REGNUM_SP, MEM_AMOUNT);
+	code.emplace_back(LI, REGNUM_SP, G::stackPos);
 	code.emplace_back(LI, REGNUM_GP, ORG_DATA + GP_OFS);
-	code.emplace_back(LEA, REGNUM_BASE, 0, REGNUM_GP);
+	code.emplace_back(LEA, REGNUM_BASE, 0, REGNUM_GP); // overwrite at Link.cpp
 	code.emplace_back(LI, REGNUM_BASE + 1, 0);
-	code.emplace_back(LI, REGNUM_BASE + 2, 0);
+	code.emplace_back(LI, REGNUM_BASE + 2, 0); // overwrite at Link.cpp
 	code.emplace_back(BRA, "bss_clear_tail");
 	code.emplace_back(LABEL, "bss_clear_loop");
 	code.emplace_back(ST, REGNUM_BASE + 1, 0, REGNUM_BASE, UNIT_SIZE);

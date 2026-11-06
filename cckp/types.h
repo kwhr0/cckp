@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#define ISA64
+//#define ISA64
 
 #define INST_SIZE		4
 #define INTEGER_SIZE	4
@@ -32,7 +32,6 @@
 #define INT_VEC_N		7
 #define ORG_DATA		0x40000
 #define GP_OFS			0x8000
-#define MEM_AMOUNT		0x200000
 
 struct Type;
 
@@ -78,7 +77,7 @@ struct Scope {
 struct G {
 	static inline std::map<std::string, Type *> funcs;
 	static inline std::vector<Scope> scopeStack;
-	static inline int dataOfs;
+	static inline int dataOfs, stackPos;
 };
 
 inline void Align(int &ofs, int size) {

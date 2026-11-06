@@ -380,71 +380,75 @@ static Node *Make(bool commaInhibit) {
 		if (vf) Error(ERR_NEEDS_OP);
 		vf = true;
 	};
-	do if (Node *node = vf ? getop(commaInhibit) : getpre()) {
-		make1([&](int prio) { return node->isRight() ? node->op_prio < prio : node->op_prio <= prio; });
-		if (node->kind != Node::COLON) opStack.push_back(node);
-		if (node->kind == Node::ARRAY) {
-			vf = false;
-			put(Make(false));
-			needch(']');
-		}
-		else if (node->kind == Node::CALL) {
-			while (Node *a = Make(true)) {
-				node->func_arg.push_back(a);
-				if (chkch() == ',') _getc();
-			}
-			needch(')');
-		}
-		else vf &= node->kind == Node::POST_PLUS || node->kind == Node::POST_MINUS;
-	}
-	else if (std::string s = getword(); s == "sizeof") {
-		bool f = chkch() == '(';
-		if (f) _getc();
-		if (Type *type = BaseType()) {
-			ParseType(type);
-			put(new Node(type->size));
-		}
-		else {
-			Node *node1 = Make(commaInhibit);
-			node1->Process();
-			put(new Node(node1->type ? node1->type->size : 0));
-		}
-		if (f) needch(')');
-	}
-	else if (s == "defined") {
-		bool f = chkch() == '(';
-		if (f) _getc();
-		put(new Node(MacroIsDefined()));
-		if (f) needch(')');
-	}
-	else if (s.length()) put(isPrepro ? new Node(0) : new Node(s.c_str()));
-	else {
+	do {
+		std::string s = getword(); // expand macro
 		ungets(s);
-		if (char c = chkch(); isnumber(c)) {
-			long vi = 0;
-			FLOAT v = 0;
-			put(new Node(getvalue(vi, v), vi, v));
+		if (Node *node = vf ? getop(commaInhibit) : getpre()) {
+			make1([&](int prio) { return node->isRight() ? node->op_prio < prio : node->op_prio <= prio; });
+			if (node->kind != Node::COLON) opStack.push_back(node);
+			if (node->kind == Node::ARRAY) {
+				vf = false;
+				put(Make(false));
+				needch(']');
+			}
+			else if (node->kind == Node::CALL) {
+				while (Node *a = Make(true)) {
+					node->func_arg.push_back(a);
+					if (chkch() == ',') _getc();
+				}
+				needch(')');
+			}
+			else vf &= node->kind == Node::POST_PLUS || node->kind == Node::POST_MINUS;
 		}
-		else if (c == '\'') {
-			_getc();
-			c = getcsub();
-			put(new Node(c == '\\' ? escape() : c));
-			assertch(_getc(), '\'');
+		else if ((s = getword()) == "sizeof") {
+			bool f = chkch() == '(';
+			if (f) _getc();
+			if (Type *type = BaseType()) {
+				ParseType(type);
+				put(new Node(type->size));
+			}
+			else {
+				Node *node1 = Make(commaInhibit);
+				node1->Process();
+				put(new Node(node1->type ? node1->type->size : 0));
+			}
+			if (f) needch(')');
 		}
-		else if (c == '\"') {
-			Node *node1 = new Node(StringLiteral(nullptr));
-			node1->type = new Type(Type::POINTER, UNIT_SIZE);
-			node1->type->next = new Type(Type::VALUE, 1);
-			put(node1);
+		else if (s == "defined") {
+			bool f = chkch() == '(';
+			if (f) _getc();
+			put(new Node(MacroIsDefined()));
+			if (f) needch(')');
 		}
-		else if (c == ')' && Node::prio > 0) {
-			_getc();
-			vf = true;
-			do Node::prio -= 0x10;
-			while ((c = getch()) == ')' && Node::prio > 0);
-			_ungetc(c);
+		else if (s.length()) put(isPrepro ? new Node(0) : new Node(s.c_str()));
+		else {
+			ungets(s);
+			if (char c = chkch(); isnumber(c)) {
+				long vi = 0;
+				FLOAT v = 0;
+				put(new Node(getvalue(vi, v), vi, v));
+			}
+			else if (c == '\'') {
+				_getc();
+				c = getcsub();
+				put(new Node(c == '\\' ? escape() : c));
+				assertch(_getc(), '\'');
+			}
+			else if (c == '\"') {
+				Node *node1 = new Node(StringLiteral(nullptr));
+				node1->type = new Type(Type::POINTER, UNIT_SIZE);
+				node1->type->next = new Type(Type::VALUE, 1);
+				put(node1);
+			}
+			else if (c == ')' && Node::prio > 0) {
+				_getc();
+				vf = true;
+				do Node::prio -= 0x10;
+				while ((c = getch()) == ')' && Node::prio > 0);
+				_ungetc(c);
+			}
+			else break;
 		}
-		else break;
 	} while (1);
 	make1([](int){ return true; });
 	Node::prio = lastprio;

@@ -4,10 +4,10 @@
 #include <unistd.h>
 
 #define CRT0		"/tmp/crt0.o"
-#define CRT0_START	((4 + INT_VEC_N) * INST_SIZE)
-#define CRT0_LENGTH	((6 + INT_VEC_N) * INST_SIZE)
 #define LIST		"a.lst"
 #define ADR			"a.adr"
+#define TEXT		"text.bin"
+#define DATA		"data.bin"
 #define LIBPATHEXT	".lp"
 
 static FILE *fo, *fa, *lst;
@@ -40,7 +40,7 @@ static void writeSRecord(FILE *fo, std::vector<uint8_t> &bin, int start, int end
 }
 
 void Link(int argc, char *argv[], std::string &archive) {
-	fo = fa = lst = NULL;
+	fo = fa = lst = nullptr;
 	try {
 		G::funcs.clear();
 		G::scopeStack.clear();
@@ -134,9 +134,10 @@ void Link(int argc, char *argv[], std::string &archive) {
 		lst = fopen(LIST, "w");
 		if (!lst) Fatal(FATAL_WRITE, LIST);
 		std::vector<uint8_t> bin;
-		bin.reserve(ofsAry.back().o[1]);
+		bin.resize(ofsAry.back().o[1]);
 		std::vector<std::tuple<int, std::string, std::string>> adrinf;
 		i = 0;
+		int bss_init = 0;
 		for (auto &fi : files) {
 			ofs = ofsAry[i++];
 			std::string entry;
@@ -153,30 +154,38 @@ void Link(int argc, char *argv[], std::string &archive) {
 							d = (d & ~0xffff) | labels[operand1] >> 2;
 							break;
 						case 'b':
-							d = (d & ~0xffff) | (d & 0xffff) + (ofs.o[0] >> 2);
+							d = (d & ~0xffff) | (d + (ofs.o[0] >> 2) & 0xffff);
 							break;
 						case 'c':
 							if (n >= 7 && !labels.count(operand2)) Error(ERR_LINK_UNDEF, operand2);
 							d = (d & ~0xffff) | (labels[operand2] - ORG_DATA - GP_OFS & 0xffff);
 							break;
 						case 'd': case 'e':
-							d = (d & ~0xffff) | (d & 0xffff) + ofs.o[*reloc - 'd' + 1] - ORG_DATA;
+							d = (d & ~0xffff) | (d + ofs.o[*reloc - 'd' + 1] - ORG_DATA & 0xffff);
 							break;
 						case 'f':
-							d = (d & ~0xffff) | ((d & 0xffff) + ofs.o[0]) >> 16;
+							d = (d & ~0xffff) | (d + ofs.o[0] & 0xffff) >> 16;
 							break;
 						case 'g':
-							d = (d & ~0xffff) | (d & 0xffff) + ofs.o[0];
+							d = (d & ~0xffff) | (d + ofs.o[0] & 0xffff);
+							break;
+						case 'h':
+							if (n >= 6 && !labels.count(operand1)) Error(ERR_LINK_UNDEF, operand1);
+							d = labels[operand1];
 							break;
 					}
 					char *mn = s + 22;
 					char t[32];
 					if (*sec == 'T') {
-						if (adr == CRT0_START)
-							d = (d & ~0xffff) | (ofsAry.front().o[2] - GP_OFS & 0xffff);
-						else if (adr == CRT0_LENGTH)
+						if (!bss_init) {
+							if (!strcmp(opecode, "lea")) {
+								bss_init = 1;
+								d = (d & ~0xffff) | (ofsAry.front().o[2] - GP_OFS & 0xffff);
+							}
+						}
+						else if (++bss_init == 3)
 							d = (d & ~0xffff) | ((ofsAry.back().o[2] - ofsAry.front().o[2]) / UNIT_SIZE & 0xffff);
-						else if (adr >= INT_VEC && adr < INT_VEC + INT_VEC_N * INST_SIZE) {
+						if (adr >= INT_VEC && adr < INT_VEC + INT_VEC_N * INST_SIZE) {
 							int a = interrupt[(adr - INT_VEC) / INST_SIZE];
 							if (a) {
 								d = Obj::BRA << 24 | (a - adr - 4) >> 2;
@@ -196,6 +205,8 @@ void Link(int argc, char *argv[], std::string &archive) {
 						d >>= 8;
 					}
 				}
+				else if (n >= 4 && *sec == 'B')
+					fprintf(lst, "%08X %s\n", adr + ofsAry.front().o[2], data);
 				else {
 					fprintf(lst, "%s", s);
 					if (!strncmp(s, ";FUNC", 5)) {
@@ -208,6 +219,17 @@ void Link(int argc, char *argv[], std::string &archive) {
 		FILE *fadr = fopen(ADR, "w");
 		for (auto &p : adrinf) fprintf(fadr, "%05x %s (%s)\n", std::get<0>(p), std::get<1>(p).c_str(), std::get<2>(p).c_str());
 		fclose(fadr);
+		//
+		if (archive.empty()) {
+			fo = fopen(TEXT, "wb");
+			if (!fo) Fatal(FATAL_WRITE, TEXT);
+			fwrite(&bin[ofsAry.front().o[0]], 1, ofsAry.back().o[0] - ofsAry.front().o[0], fo);
+			fclose(fo);
+			fo = fopen(DATA, "wb");
+			if (!fo) Fatal(FATAL_WRITE, DATA);
+			fwrite(&bin[ofsAry.front().o[1]], 1, ofsAry.back().o[1] - ofsAry.front().o[1], fo);
+			fclose(fo);
+		}
 		if (archive.empty()) {
 			fo = fopen(A_OUT, "w");
 			if (!fo) Fatal(FATAL_WRITE, A_OUT);
