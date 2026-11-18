@@ -4,7 +4,7 @@
 #include "File.h"
 #include "Node.h"
 
-static int labelNum, returnLabelNum, stackMin;
+static int labelNum, returnLabelNum, funcNum, stackMin;
 static std::vector<int> _break, _continue;
 static std::set<std::string> gotoDefined, gotoNeed;
 static Type *retType;
@@ -239,6 +239,7 @@ static void DefineGlobalVar(std::string &name, Type *type, bool dataf, int size)
 }
 
 static void DefineFunction(std::string &name, Type *type) {
+	++funcNum;
 	int ofs = UNIT_SIZE; // next of return address
 	if (type->next->kind == Type::STRUCT) ofs += type->next->size;
 	G::scopeStack.emplace_back();
@@ -456,7 +457,7 @@ static void parse_return() {
 
 static void parse_goto() {
 	std::string s = getword();
-	Obj::code.emplace_back(Obj::BRA, s);
+	Obj::code.emplace_back(Obj::BRA, s + "@", funcNum);
 	needch(';');
 	gotoNeed.insert(s);
 }
@@ -480,7 +481,7 @@ static void ParseStatement() {
 	else {
 		if (std::string s = getword(); keywords.count(s)) keywords[s]();
 		else if (char c = _getc(); c == ':') {
-			Obj::code.emplace_back(Obj::LABEL, s);
+			Obj::code.emplace_back(Obj::LABEL, s + "@", funcNum);
 			gotoDefined.insert(s);
 		}
 		else {
@@ -492,7 +493,7 @@ static void ParseStatement() {
 }
 
 static void init() {
-	labelNum = returnLabelNum = stackMin = 0;
+	labelNum = returnLabelNum = funcNum = stackMin = 0;
 	_break.clear();
 	_continue.clear();
 	gotoDefined.clear();
