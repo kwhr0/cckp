@@ -10,6 +10,8 @@
 #define DATA		"data.bin"
 #define LIBPATHEXT	".lp"
 
+std::vector<std::string> libPath;
+
 static FILE *fo, *fa, *lst;
 static std::map<std::string, std::string> libref;
 static std::vector<std::pair<FILE *, std::string>> files;
@@ -17,11 +19,14 @@ static std::vector<std::pair<FILE *, std::string>> files;
 void ReadLibPath(std::string path) {
 	char s[256], name[256], opath[256];
 	path += LIBPATHEXT;
-	FILE *flb = fopen(path.c_str(), "r");
-	if (!flb) Fatal(FATAL_OPEN, path.c_str());
-	while (fgets(s, sizeof(s), flb))
-		if (sscanf(s, "%255s%255s", name, opath) == 2) libref[name] = opath;
-	fclose(flb);
+	for (auto prefix : libPath)
+		if (FILE *flb = fopen((prefix + path).c_str(), "r")) {
+			while (fgets(s, sizeof(s), flb))
+				if (sscanf(s, "%255s%255s", name, opath) == 2) libref[name] = prefix + opath;
+			fclose(flb);
+			return;
+		}
+	Fatal(FATAL_OPEN, path.c_str());
 }
 
 static void writeSRecord(FILE *fo, std::vector<uint8_t> &bin, int start, int end) {
@@ -227,7 +232,7 @@ void Link(int argc, char *argv[], std::string &archive) {
 			fclose(fo);
 			fo = fopen(DATA, "wb");
 			if (!fo) Fatal(FATAL_WRITE, DATA);
-			fwrite(&bin[ofsAry.front().o[1]], 1, ofsAry.back().o[1] - ofsAry.front().o[1], fo);
+			if (int len = ofsAry.back().o[1] - ofsAry.front().o[1]) fwrite(&bin[ofsAry.front().o[1]], 1, len, fo);
 			fclose(fo);
 		}
 		if (archive.empty()) {

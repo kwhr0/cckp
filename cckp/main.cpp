@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 	try {
 		std::string pwd = std::string(getenv("PWD")) + '/';
 		includePath.push_back(pwd);
-		for (int c; (c = getopt(argc, argv, "D:EI:Ma:cl:s:")) != -1;) {
+		for (int c; (c = getopt(argc, argv, "D:EI:L:Ma:cl:s:")) != -1;) {
 			bool e = false;
 			std::string name, content;
 			switch (c) {
@@ -45,6 +45,9 @@ int main(int argc, char *argv[]) {
 					break;
 				case 'I':
 					includePath.push_back(std::string(*optarg == '/' ? "" : pwd) + optarg + '/');
+					break;
+				case 'L':
+					libPath.push_back(std::string(*optarg == '/' ? "" : pwd) + optarg + '/');
 					break;
 				case 'M':
 					depend = true;
